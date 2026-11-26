@@ -1,0 +1,38 @@
+# Daily routines fired by `kronos serve`. Times are the machine's local time.
+# Each routine runs as an unattended Jarvis task; the final answer is delivered by
+# `deliver`: call (phone, text-to-speech), sms, notify (desktop) or none.
+# A routine missed by more than 3 hours (computer was off) is skipped for that day.
+routines:
+  - name: Rytinis brifingas
+    time: "07:30"
+    days: [mon, tue, wed, thu, fri]
+    deliver: call
+    prompt: |
+      Parenk rytinį brifingą balsu, iki 40 sekundžių skaitymo.
+      1. Šios dienos užduotys ir susitikimai iš atminties (tasks.md, preferences/schedule.md) ir
+         kalendoriaus, jei prijungtas.
+      2. Orai šiandien vartotojo mieste (iš profile.md; jei nežinomas - Vilnius): temperatūra ryte ir
+         dieną, krituliai, ar reikia skėčio.
+      3. Viena svarbiausia Lietuvos ar pasaulio naujiena, viena eilute.
+      4. Jei preferences/food.md ar meals/ turi šios dienos planą - kas šiandien vakarienei.
+      Rašyk trumpais sakiniais, be sąrašo ženklų ir be nuorodų.
+
+  - name: Vakaro apžvalga
+    time: "21:00"
+    days: [sun, mon, tue, wed, thu, fri, sat]
+    deliver: notify
+    enabled: true
+    prompt: |
+      Peržiūrėk tasks.md: kas šiandien turėjo būti padaryta ir nepažymėta, kas laukia rytoj.
+      Jei rytoj yra ankstyvų įsipareigojimų (iki 9:00), suplanuok skambutį-priminimą 40 minučių
+      prieš pirmąjį su schedule_task (kind=call). Atsakyk dviem-trimis sakiniais.
+
+  - name: Savaitės meniu
+    time: "10:00"
+    days: [sat]
+    deliver: sms
+    enabled: false   # įjunkite, kai preferences/food.md bus užpildytas
+    prompt: |
+      Sudaryk kitos savaitės vakarienių planą pagal preferences/food.md ir praeitų savaičių meals/,
+      išsaugok jį meals/ kataloge ir atsakyk sąrašu: diena - patiekalas, bei pirkinių sąrašo
+      ilgiu (kiek pozicijų). Pirkinių sąrašą išsaugok tame pačiame faile.

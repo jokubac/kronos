@@ -12,9 +12,10 @@ from rich.text import Text
 
 
 class UI:
-    def __init__(self, console: Console | None = None, verbose: bool = False) -> None:
+    def __init__(self, console: Console | None = None, verbose: bool = False, interactive: bool = True) -> None:
         self.console = console or Console(highlight=False, soft_wrap=True)
         self.verbose = verbose
+        self.interactive = interactive
         self._streaming = False  # True while live deltas are being printed
 
     # -- agent output -------------------------------------------------------
@@ -92,7 +93,7 @@ class UI:
     def confirm(self, prompt: str) -> bool:
         """Ask the user y/n. Deny when no one is at the terminal."""
         self.end_streaming()
-        if not sys.stdin.isatty():
+        if not self.interactive or not sys.stdin.isatty():
             self.warn("Nėra interaktyvaus terminalo; veiksmas atmestas.")
             return False
         self.console.print(Panel(prompt, title="Reikia patvirtinimo", border_style="yellow"))

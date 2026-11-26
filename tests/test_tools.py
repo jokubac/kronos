@@ -15,7 +15,21 @@ def ctx(confirm_answer: bool = True, policy: str = "ask", **env: str) -> ToolCon
 
 
 def test_default_registry_has_the_tools_the_agents_declare() -> None:
-    assert build_default_registry().names() == ["home_assistant", "local_shell", "notify_user"]
+    """Every custom tool an agent file declares must have a host-side handler."""
+    import re
+    from pathlib import Path
+
+    import yaml
+
+    declared: set[str] = set()
+    for agent_file in (Path(__file__).resolve().parents[1] / "agents").glob("*.md"):
+        match = re.match(r"^---\n(.*?)\n---\n", agent_file.read_text(encoding="utf-8"), re.S)
+        assert match, agent_file
+        for tool in yaml.safe_load(match.group(1)).get("tools", []):
+            if tool.get("type") == "custom":
+                declared.add(tool["name"])
+    assert declared
+    assert declared <= set(build_default_registry().names())
 
 
 def test_unknown_tool_is_an_error_result_not_an_exception() -> None:

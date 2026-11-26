@@ -11,6 +11,9 @@ kalbasi su jumis ir dalija darbus penkiems specialistams, kurie dirba paraleliai
 | Coder | Claude Sonnet 5.5 | Kodas, skriptai, failai sandbox'e, vykdymas ir testavimas. |
 | Secretary | Claude Sonnet 5.5 | Kalendorius, el. paštas (per MCP, kai prijungta), priminimai, užduočių sąrašas atmintyje. |
 | Home | Claude Sonnet 5.5 | Namų ir kompiuterio valdymas per **jūsų** kompiuteryje vykdomus įrankius: Home Assistant, lokalus shell, pranešimai. |
+
+Jarvis ir Secretary dar turi telefono įrankius: `phone_call` (skambutis balsu), `send_sms`, `schedule_task`
+(suplanuoti skambutį, SMS, pranešimą ar užduotį sau, vienkartinę ar kartotinę), `list_scheduled`, `cancel_scheduled`.
 | Chef | Claude Sonnet 5.5 | Maisto planavimas, receptai, pirkinių sąrašai pagal išsaugotus pomėgius. |
 
 Visi agentai dalijasi **ilgalaike atmintimi** (memory store, prijungtas kaip `/mnt/memory/jarvis-memory/`),
@@ -26,8 +29,10 @@ Jarvis paleidžia foninį vykdymą, kuriame daug agentų dirba fazėmis.
             │      │ custom tools:            ├─ Jarvis (koordinatorius, Opus 5.5)
             │      │  home_assistant          ├─ Researcher / Coder / Secretary / Home / Chef
             │      │  local_shell             └─ sandbox: bash, failai, web, /mnt/memory
-            │      │  notify_user
+            │      │  notify_user, phone_call, send_sms
+            │      │  schedule_task …
             └──────┘
+ kronos serve (foninis): rutinos + suplanuoti skambučiai → Twilio → jūsų telefonas
 ```
 
 - **Valdymo plokštuma** (agentai, aplinka, atmintis, vault) aprašyta failuose `agents/`, `environments/`,
@@ -81,6 +86,41 @@ uv run kronos "Kas šiandien darbotvarkėje?"   # viena žinutė ir išeiti
 
 Komandos pokalbyje: `/new`, `/status` (kaina, biudžetas), `/threads` (kurie agentai dirbo), `/url`
 (nuoroda į Console sesijos peržiūrą), `/help`, `/quit`. `Ctrl+C` užduoties metu nutraukia agentą.
+
+## Kasdienis režimas: `kronos serve`, skambučiai ir priminimai
+
+Jarvis veikia ir be jūsų prie terminalo. Foninis procesas `kronos serve` kas 15 s tikrina, kas pribrendo:
+
+- **Rutinos** iš `routines.yaml`: pvz. 07:30 darbo dienomis Jarvis parengia rytinį brifingą (užduotys,
+  orai, viena naujiena, vakarienė) ir **paskambina** jums bei perskaito jį balsu. 21:00 vakaro apžvalga
+  ateina kaip pranešimas. Rutinas redaguojate YAML'e: laikas, dienos, pristatymo kanalas
+  (`call`, `sms`, `notify`, `none`) ir užduoties tekstas.
+- **Agento suplanuoti dalykai**: pokalbyje pasakius „paskambink man rytoj 7:00 ir primink apie vizitą“
+  arba „kiekvieną rytą 8:00 patikrink orus ir paskambink“, Jarvis įrašo tai per `schedule_task`, o
+  daemonas nurodytu laiku paskambina, išsiunčia SMS, parodo pranešimą ar pats atlieka užduotį ir
+  pristato rezultatą. `kronos schedule` arba `/schedule` parodo sąrašą, Jarvis gali atšaukti pagal id.
+
+Skambučiai ir SMS eina per **Twilio** (vienpusis balso skambutis su teksto įgarsinimu, lietuviškas
+Google balsas). `.env`:
+
+```
+TWILIO_ACCOUNT_SID=AC...
+TWILIO_AUTH_TOKEN=...
+TWILIO_FROM_NUMBER=+370...      # jūsų Twilio numeris
+USER_PHONE_NUMBER=+3706...      # kur skambinti
+KRONOS_QUIET_HOURS=22:30-07:00  # ne skubūs skambučiai šiuo metu atmetami, Jarvis perkelia juos rytui
+```
+
+Paleidimas:
+
+```sh
+uv run kronos serve                       # terminale
+# arba nuolat: Linux - deploy/kronos.service (systemd --user), macOS - deploy/com.kronos.daemon.plist
+```
+
+Daemono sesijose niekas nestebi, todėl įrankiai, kuriems reikėtų patvirtinimo, atmetami, o `local_shell`
+išjungtas, nebent `KRONOS_SHELL_POLICY=allow`. Žurnalai: `~/.kronos/logs/`. Rutina, praleista daugiau nei
+3 val. (kompiuteris buvo išjungtas), tą dieną nebevykdoma.
 
 ## Namų valdymas (Home Assistant)
 
@@ -143,13 +183,17 @@ Struktūra:
 
 ```
 agents/            šeši agentų aprašai (YAML frontmatter + sisteminis promptas)
+routines.yaml      kasdienės rutinos daemonui
+deploy/            systemd / launchd pavyzdžiai daemonui
 environments/      sandbox aplinka
 memory_stores/     ilgalaikė atmintis
 vaults/            kredencialų konteineris (be paslapčių)
 src/kronos/
   cli.py           komanda `kronos`, interaktyvus ciklas
   session.py       sesijos kūrimas/tęsimas, įvykių srautas, workflow'ų ir gijų sekimas
-  tools/           lokaliai vykdomi įrankiai: home_assistant, local_shell, notify
+  daemon.py        `kronos serve`: rutinos ir suplanuoti skambučiai/priminimai
+  schedule.py      planuoklio saugykla (~/.kronos/schedule.json), rutinų skaitymas
+  tools/           lokaliai vykdomi įrankiai: home_assistant, local_shell, notify, phone (Twilio), scheduling
   config.py        ID iš claude-lock.json / aplinkos kintamųjų
   ui.py            terminalo išvestis (rich)
 tests/

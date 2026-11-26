@@ -42,6 +42,7 @@ class TurnState:
     last_cost: str | None = None
     done: bool = False
     stop_reason: str | None = None
+    last_message: str = ""
 
 
 # ------------------------------------------------------------------- event handling
@@ -88,6 +89,8 @@ class EventHandler:
 
     def on_agent__message(self, event: Any, state: TurnState) -> None:
         text = text_of(event.content)
+        if text.strip():
+            state.last_message = text
         self.ui.agent_message(text, state.previews.pop(event.id, None))
 
     def on_span__model_request_end(self, event: Any, state: TurnState) -> None:
@@ -251,7 +254,10 @@ def format_cost(cost: Any) -> str:
 class JarvisSession:
     RETRYABLE = (anthropic.APIConnectionError, anthropic.APITimeoutError, anthropic.InternalServerError)
 
-    def __init__(self, client: anthropic.Anthropic, settings: Settings, ui: UI, tools: ToolRegistry) -> None:
+    def __init__(
+        self, client: anthropic.Anthropic, settings: Settings, ui: UI, tools: ToolRegistry, state_name: str = "session.json"
+    ) -> None:
+        self.state_name = state_name
         self.client = client
         self.settings = settings
         self.ui = ui
@@ -263,13 +269,14 @@ class JarvisSession:
             notify=ui.notify,
             shell_policy=settings.shell_policy,
             env=dict(os.environ),
+            state_dir=settings.state_dir,
         )
 
     # -- lifecycle ---------------------------------------------------------------------------
 
     @property
     def state_file(self) -> Path:
-        return self.settings.state_dir / "session.json"
+        return self.settings.state_dir / self.state_name
 
     def _save_state(self) -> None:
         self.settings.state_dir.mkdir(parents=True, exist_ok=True)

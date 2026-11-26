@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 
@@ -22,6 +23,7 @@ class ToolContext:
     notify: Callable[[str, str], None]
     shell_policy: str = "ask"
     env: dict[str, str] = field(default_factory=dict)
+    state_dir: Path | None = None
 
 
 ToolHandler = Callable[[dict[str, Any], ToolContext], str]
@@ -61,9 +63,16 @@ def build_default_registry() -> ToolRegistry:
     from kronos.tools.home_assistant import home_assistant
     from kronos.tools.local_shell import local_shell
     from kronos.tools.notify import notify_user
+    from kronos.tools.phone import phone_call, send_sms
+    from kronos.tools.scheduling import cancel_scheduled, list_scheduled, schedule_task
 
     registry = ToolRegistry()
     registry.register("home_assistant", home_assistant)
     registry.register("local_shell", local_shell)
     registry.register("notify_user", notify_user)
+    registry.register("phone_call", phone_call)
+    registry.register("send_sms", send_sms)
+    registry.register("schedule_task", schedule_task)
+    registry.register("list_scheduled", list_scheduled)
+    registry.register("cancel_scheduled", cancel_scheduled)
     return registry

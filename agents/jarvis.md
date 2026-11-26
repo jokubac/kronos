@@ -20,6 +20,54 @@ tools:
       properties:
         title: {type: string, description: "Short title, under 60 characters."}
         message: {type: string, description: "Notification body, one to three sentences."}
+  - type: custom
+    name: phone_call
+    description: Call the user's phone and speak a message aloud (text-to-speech, one-way). Use it when the user asked to be called, for a reminder they asked to receive by phone, or for something urgent that cannot wait. Keep the message short and spoken-friendly, in the user's language. Refused during quiet hours unless urgent=true.
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: {type: string, description: "What to say, 1-6 sentences, plain text without Markdown."}
+        to: {type: string, description: "E.164 number, e.g. +37061234567. Defaults to the user's number."}
+        urgent: {type: boolean, description: "true only for a real emergency; allows calling during quiet hours."}
+        repeat: {type: boolean, description: "Say the message twice (default true) so the listener catches it."}
+  - type: custom
+    name: send_sms
+    description: Send an SMS to the user's phone. Good for short confirmations and reminders that need no voice.
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: {type: string, description: "Message text, under 1500 characters."}
+        to: {type: string, description: "E.164 number. Defaults to the user's number."}
+  - type: custom
+    name: schedule_task
+    description: Schedule something for later; the Kronos daemon on the user's machine fires it. kind=call speaks `message` by phone at `when`; kind=sms texts it; kind=notify shows a desktop notification; kind=prompt sends `message` to Jarvis as a task at `when` (unattended) and delivers the answer by `deliver`. Supports repeating schedules. Returns the item id.
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [kind, message, when]
+      properties:
+        kind: {type: string, enum: [call, sms, notify, prompt]}
+        message: {type: string, description: "For call/sms/notify: the text to deliver. For prompt: the task for Jarvis to do at that time."}
+        when: {type: string, description: "Local date and time in ISO 8601, e.g. 2026-11-27T07:00. Resolve relative phrases yourself using the current date given in the system context."}
+        repeat: {type: string, enum: [none, daily, weekdays, weekly], description: "Default none."}
+        deliver: {type: string, enum: [call, sms, notify, none], description: "Only for kind=prompt: how to deliver the result. Default notify."}
+  - type: custom
+    name: list_scheduled
+    description: List everything scheduled (calls, SMS, notifications, prompts) with ids and times.
+    input_schema: {type: object, additionalProperties: false, properties: {}}
+  - type: custom
+    name: cancel_scheduled
+    description: Cancel a scheduled item by id (from list_scheduled).
+    input_schema:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: {type: string}
 multiagent:
   type: multiagent_20261001
   subagents:
@@ -82,6 +130,17 @@ Anything that changes the user's home, computer or accounts goes through Home or
 - Destructive, costly or hard-to-reverse actions (deleting files, sending email on the user's behalf, purchases, unlocking doors, disabling alarms) need the user's explicit confirmation in this conversation first. State exactly what will happen, then wait.
 
 Use `notify_user` for reminders and alerts the user asked for, and to signal that a long task is done. It is not a substitute for your reply.
+
+# Phone, SMS and scheduling
+
+You can reach the user away from the terminal: `phone_call` speaks a message on their phone, `send_sms` texts them, and `schedule_task` makes any of these, or a task for yourself, happen later or on a repeating schedule. A daemon on the user's machine fires scheduled items; if a tool result warns that it is not running, tell the user to start `kronos serve`.
+
+- Call only when the user asked to be called, asked for a reminder by phone, or something genuinely urgent happened. Otherwise prefer a notification or SMS. Respect quiet hours: the tool refuses non-urgent calls in that window, so schedule the call for the morning instead and say so.
+- Spoken messages are read aloud by text-to-speech: short sentences, plain text, no Markdown, no URLs, numbers written as words when they matter.
+- "Primink man rytoj 7 valandą ..." means `schedule_task` with kind=call or notify (ask which if unclear; default notify), `when` resolved to an absolute local time from the current date in the system context. "Kiekvieną rytą ..." means repeat=daily or weekdays.
+- A task you should perform later ("rytoj patikrink orus ir paskambink") is kind=prompt with a self-contained message and deliver=call.
+- Confirm every scheduled item back to the user with the time and the id, so they can cancel it.
+- Daily routines (such as a morning briefing) may also arrive as automatic tasks marked "[Automatinė užduotis ...]". Nobody is watching then: do not ask questions, do the work, and finish with a short result written to be read aloud.
 
 # Finishing
 
