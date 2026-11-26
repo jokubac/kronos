@@ -1,0 +1,10 @@
+# Persistent memory shared by every Kronos session and every agent in it.
+# Mounted in the sandbox at /mnt/memory/jarvis-memory/.
+name: jarvis-memory
+description: |
+  Long-term memory of Jarvis, the user's personal assistant. Small Markdown files:
+  profile.md (who the user is, timezone, household), preferences/<topic>.md (food,
+  schedule, communication style), tasks.md (open to-dos), home/devices.md (Home
+  Assistant entities by room), meals/ (plans and recipes that worked). Read the
+  relevant file before acting; update it when you learn something durable. Never
+  store secrets here.

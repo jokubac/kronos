@@ -1,0 +1,6 @@
+# Credential container for third-party services the agents call (MCP servers such as
+# Google Calendar / Gmail). `ant apply` creates only the vault; add credentials with
+# `ant beta:vaults:credentials create` as described in the README. Secrets are never
+# stored in this repository.
+type: vault
+display_name: kronos

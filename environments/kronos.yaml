@@ -1,0 +1,19 @@
+# Sandbox template for every Kronos session.
+#
+# Networking is `unrestricted` because the Researcher and Chef agents read arbitrary
+# sites and `limited` networking returns no web search or fetch results unless every
+# host is listed in advance. The sandbox never holds your secrets: Home Assistant and
+# shell access run on your own machine through custom tools, and any API keys for
+# MCP servers live in the vault and are injected outside the sandbox.
+#
+# To lock the sandbox down, replace `networking` with, for example:
+#   networking:
+#     type: limited
+#     allow_package_managers: true
+#     allow_mcp_servers: true
+#     allowed_hosts: ["*.wikipedia.org", "www.lrt.lt"]   # web tools then reach only these
+name: kronos
+config:
+  type: cloud
+  networking:
+    type: unrestricted
